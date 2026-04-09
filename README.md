@@ -1,0 +1,2 @@
+#Multi-SystemCharacterManager
+TRPGのキャラシート管理用のツールとして作りました。
