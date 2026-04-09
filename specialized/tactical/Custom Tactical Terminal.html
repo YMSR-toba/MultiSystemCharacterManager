@@ -1,0 +1,335 @@
+<!--System Developer: [YMSR]
+Core Engine: Multi-System Character Manager (MIT License)
+
+[Description]
+This is a fork of the Multi-System Character Manager.-->
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Custom Tactical Terminal</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #2c3e50; padding: 20px; color: #ecf0f1; }
+        .card { background: #34495e; padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); max-width: 750px; margin: auto; border: 1px solid #465c71; }
+        .char-header { display: flex; gap: 20px; align-items: flex-start; margin-bottom: 20px; }
+        .char-image-container { 
+            width: 120px; height: 150px; 
+            border: 2px solid #5d6d7e; background: #1a252f;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden; flex-shrink: 0; border-radius: 4px;
+        }
+        .char-image-container img { width: 100%; height: 100%; object-fit: cover; }
+        .char-info-main { flex-grow: 1; }
+        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0; }
+        .status-item { border: 1px solid #5d6d7e; padding: 12px; border-radius: 8px; background: #2c3e50; display: flex; justify-content: space-between; align-items: center; }
+        .resource-section { text-align: center; background: #1a252f; border: 2px solid #3498db; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+        .hp-display { font-size: 2.5em; font-weight: bold; color: #e74c3c; margin-bottom: 10px; text-shadow: 1px 1px 2px #000; }
+        .equip-section, .storage-section { background: #2c3e50; border: 1px solid #5d6d7e; padding: 15px; border-radius: 8px; margin-top: 20px; }
+        .equip-item { display: flex; gap: 8px; margin-bottom: 10px; align-items: flex-start; }
+        .equip-textarea { flex-grow: 1; border: 1px solid #7f8c8d; border-radius: 6px; padding: 8px; font-family: inherit; background: #34495e; color: #fff; resize: vertical; min-height: 3em; }
+        .desc-text { color: #bdc3c7; font-style: italic; margin-top: 5px; white-space: pre-wrap; word-wrap: break-word; border-left: 3px solid #3498db; padding-left: 10px; font-size: 0.9em; }
+        
+        /* Storage UI */
+        .storage-tabs { display: flex; gap: 5px; margin-bottom: 10px; border-bottom: 1px solid #5d6d7e; padding-bottom: 5px; }
+        .tab-btn { background: #1a252f; color: #7f8c8d; border: none; font-size: 0.9em; padding: 5px 15px; }
+        .tab-btn.active { background: #3498db; color: white; border-radius: 4px 4px 0 0; }
+        
+        button { cursor: pointer; padding: 8px 16px; border-radius: 6px; border: 1px solid #7f8c8d; background: #ecf0f1; color: #2c3e50; transition: 0.2s; font-weight: bold; }
+        button.active { background: #3498db; color: white; }
+        button.save { background: #27ae60; color: white; width: 100%; font-size: 1.2em; margin-top: 20px; }
+        .num-input { width: 70px; text-align: center; font-size: 1.2em; border: 1px solid #7f8c8d; border-radius: 6px; background: #1a252f; color: #fff; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Custom Tactical Terminal</h2>
+    <div style="background: #1a252f; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+        <input type="file" id="fileInput" accept=".json">
+        <button onclick="createNewCharacter()" style="font-size: 0.8em;">新規作成</button>
+    </div>
+    
+    <div id="characterView" style="display:none;">
+        <div class="char-header">
+            <div class="char-image-container" id="imageBox">
+                <span id="noImageText" style="color:#5d6d7e; font-size:0.8em;">NO IMAGE</span>
+                <img id="charImg" style="display:none;">
+            </div>
+            <div class="char-info-main">
+                <div style="display:flex; justify-content:space-between;">
+                    <h1 id="charName" style="margin: 0; color: #3498db;"></h1>
+                    <button onclick="editMeta()" style="font-size: 0.7em;">編集</button>
+                </div>
+                <div id="charOrigin" style="font-size: 0.8em; color: #95a5a6; margin-bottom:5px;">Origin: <span id="originText"></span></div>
+                <div id="charDesc" class="desc-text"></div>
+            </div>
+        </div>
+        
+        <div id="systemButtons" style="margin: 15px 0;"></div>
+
+        <div class="resource-section">
+            <div style="font-size: 0.9em; color: #bdc3c7;">Vitality: Hitpoint</div>
+            <div class="hp-display"><span id="curHP">0</span> / <span id="maxHP">0</span></div>
+            <button onclick="adjValue('curHP', -1)">-1</button>
+            <button onclick="adjValue('curHP', 1)">+1</button>
+            <button onclick="resetCurrentHP()" style="margin-left: 15px; background: #e67e22; color: white;">リブート</button>
+        </div>
+
+        <div class="status-grid" id="baseStats"></div>
+        <div class="calc-status-container" id="calcSection">
+            <div id="calcList"></div>
+        </div>
+
+        <div class="equip-section">
+            <h3 style="margin-top: 0; color: #3498db;">Active Skills / Equipment</h3>
+            <div id="equipmentEditor"></div>
+            <button onclick="addEquipment()">+ 追加</button>
+        </div>
+
+        <div class="storage-section">
+            <h3 style="margin-top: 0; color: #e67e22;">Tactical Storage</h3>
+            <div class="storage-tabs">
+                <button id="tab-backpack" class="tab-btn active" onclick="switchStorageTab('backpack')">Backpack</button>
+                <button id="tab-warehouse" class="tab-btn" onclick="switchStorageTab('warehouse')">Warehouse</button>
+            </div>
+            <div id="storageEditor"></div>
+            <button onclick="addStorageItem()">+ アイテム追加</button>
+        </div>
+
+        <button class="save" onclick="exportJSON()">JSON出力</button>
+    </div>
+</div>
+
+<script>
+let charData = null;
+let currentSystem = "";
+let currentStorageTab = "backpack"; // デフォルト
+let values = {};
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            charData = JSON.parse(event.target.result);
+            // Storage構造の初期化保証
+            ensureStorageStructure();
+            initUI();
+        } catch (err) {
+            alert("JSONの読み込みに失敗しました。");
+        }
+    };
+    reader.readAsText(e.target.files[0]);
+});
+
+function ensureStorageStructure() {
+    Object.keys(charData.systems_config).forEach(sys => {
+        if (!charData.systems_config[sys].storage) {
+            charData.systems_config[sys].storage = { backpack: [], warehouse: [] };
+        }
+    });
+}
+
+function initUI() {
+    if (!charData) return;
+    document.getElementById('characterView').style.display = 'block';
+    document.getElementById('charName').innerText = charData.name || "Unknown";
+    document.getElementById('originText').innerText = charData.origin_system || "Unknown";
+    document.getElementById('charDesc').innerText = charData.description || "";
+
+    const imgEl = document.getElementById('charImg');
+    const noImg = document.getElementById('noImageText');
+    if (charData.image_url && charData.image_url !== "") {
+        imgEl.src = charData.image_url;
+        imgEl.style.display = "block";
+        noImg.style.display = "none";
+    } else {
+        imgEl.style.display = "none";
+        noImg.style.display = "block";
+    }
+
+    const btnArea = document.getElementById('systemButtons');
+    btnArea.innerHTML = "";
+    Object.keys(charData.systems_config).forEach(key => {
+        const b = document.createElement('button');
+        b.innerText = key;
+        b.onclick = () => switchSystem(key);
+        b.id = "btn-" + key.replace(/[:\s]/g, '');
+        btnArea.appendChild(b);
+    });
+    
+    const firstKey = Object.keys(charData.systems_config)[0];
+    if (firstKey) switchSystem(firstKey);
+}
+
+function switchSystem(key) {
+    currentSystem = key;
+    document.querySelectorAll('#systemButtons button').forEach(b => b.classList.remove('active'));
+    const tid = "btn-" + key.replace(/[:\s]/g, '');
+    const btn = document.getElementById(tid);
+    if(btn) btn.classList.add('active');
+
+    const config = charData.systems_config[key];
+    const base = charData.base_stats;
+
+    const baseGrid = document.getElementById('baseStats');
+    baseGrid.innerHTML = `
+        <div class="status-item"><span>${config.stat_names.spade}</span> <input type="number" class="num-input" value="${base.spade}" onchange="updateBaseStat('spade', this.value)"></div>
+        <div class="status-item"><span>${config.stat_names.diamond}</span> <input type="number" class="num-input" value="${base.diamond}" onchange="updateBaseStat('diamond', this.value)"></div>
+        <div class="status-item"><span>${config.stat_names.club}</span> <input type="number" class="num-input" value="${base.club}" onchange="updateBaseStat('club', this.value)"></div>
+        <div class="status-item"><span>${config.stat_names.heart}</span> <input type="number" class="num-input" value="${base.heart}" onchange="updateBaseStat('heart', this.value)"></div>
+    `;
+
+    values.maxHP = calcHP(key, base);
+    if (!values.curHP) values.curHP = values.maxHP;
+
+    renderCalcStats(key, base);
+    renderEquipment(config.equipment);
+    renderStorage(); // ストレージ描画
+    updateDisplay();
+}
+
+function switchStorageTab(tab) {
+    currentStorageTab = tab;
+    document.getElementById('tab-backpack').classList.toggle('active', tab === 'backpack');
+    document.getElementById('tab-warehouse').classList.toggle('active', tab === 'warehouse');
+    renderStorage();
+}
+
+// 共通計算・表示ロジック (既存維持)
+function calcHP(key, base) {
+    return (base.spade + base.heart) * 5;
+}
+
+function renderCalcStats(key, base) {
+    const list = document.getElementById('calcList');
+    list.innerHTML = "";
+    addCalcItem(list, "Stamina (STA)", (base.spade + base.heart + base.diamond) * 5, true, "val_STA");
+    addCalcItem(list, "Magic Point (MP)", (base.club + base.diamond) * 5 , true, "val_MP");
+    addCalcItem(list, "Armor (AMR)", 0, true, "val_AMR");
+}
+
+function addCalcItem(targetEl, label, maxVal, editable, id) {
+    if(values[id] === undefined) {
+        values[id] = (editable ? maxVal : 0);
+    }
+    const html = `
+        <div class="calc-item">
+            <span>${label}</span>
+            <div>
+                <input type="number" class="num-input" id="input_${id}" value="${values[id]}" onchange="updateVal('${id}', this.value)">
+                ${label !== "Armor (AMR)" ? `<span style="font-size:0.8em; color:#95a5a6;"> / ${maxVal}</span>` : ""}
+            </div>
+        </div>`;
+    targetEl.insertAdjacentHTML('beforeend', html);
+}
+
+// --- Equipment Logic ---
+function renderEquipment(equipmentArray) {
+    const editor = document.getElementById('equipmentEditor');
+    editor.innerHTML = "";
+    if (!equipmentArray) return;
+    equipmentArray.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = "equip-item";
+        div.innerHTML = `<textarea class="equip-textarea" onchange="updateEquip(${index}, this.value)">${item}</textarea>
+                         <button onclick="removeEquip(${index})">×</button>`;
+        editor.appendChild(div);
+    });
+}
+function updateEquip(index, val) { charData.systems_config[currentSystem].equipment[index] = val; }
+function addEquipment() { 
+    if(!charData.systems_config[currentSystem].equipment) charData.systems_config[currentSystem].equipment = [];
+    charData.systems_config[currentSystem].equipment.push("New Equipment/Skill"); 
+    renderEquipment(charData.systems_config[currentSystem].equipment); 
+}
+function removeEquip(index) { 
+    charData.systems_config[currentSystem].equipment.splice(index, 1); 
+    renderEquipment(charData.systems_config[currentSystem].equipment); 
+}
+
+// --- Storage Logic ---
+function renderStorage() {
+    const editor = document.getElementById('storageEditor');
+    editor.innerHTML = "";
+    const storageList = charData.systems_config[currentSystem].storage[currentStorageTab];
+    
+    storageList.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = "equip-item";
+        div.innerHTML = `<textarea class="equip-textarea" onchange="updateStorageItem(${index}, this.value)">${item}</textarea>
+                         <button onclick="removeStorageItem(${index})">×</button>`;
+        editor.appendChild(div);
+    });
+}
+function updateStorageItem(index, val) { charData.systems_config[currentSystem].storage[currentStorageTab][index] = val; }
+function addStorageItem() {
+    charData.systems_config[currentSystem].storage[currentStorageTab].push("New Item");
+    renderStorage();
+}
+function removeStorageItem(index) {
+    charData.systems_config[currentSystem].storage[currentStorageTab].splice(index, 1);
+    renderStorage();
+}
+
+// --- Base System Logic ---
+function updateVal(id, newVal) { values[id] = parseInt(newVal); updateDisplay(); }
+function updateBaseStat(stat, val) {
+    charData.base_stats[stat] = parseInt(val);
+    values.maxHP = calcHP(currentSystem, charData.base_stats);
+    renderCalcStats(currentSystem, charData.base_stats);
+    updateDisplay();
+}
+
+function updateDisplay() {
+    document.getElementById('curHP').innerText = values.curHP;
+    document.getElementById('maxHP').innerText = values.maxHP;
+    for (let key in values) {
+        const el = document.getElementById('input_' + key);
+        if(el) el.value = values[key];
+    }
+}
+
+function editMeta() {
+    const n = prompt("名前:", charData.name);
+    if(n) charData.name = n;
+    const d = prompt("説明:", charData.description.replace(/\n/g, "\\n"));
+    if(d) charData.description = d.replace(/\\n/g, "\n");
+    const u = prompt("画像URL:", charData.image_url || "");
+    if(u !== null) charData.image_url = u;
+    initUI();
+}
+
+function exportJSON() {
+    const blob = new Blob([JSON.stringify(charData, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${charData.name}_TacticalData.json`;
+    a.click();
+}
+
+function createNewCharacter() {
+    charData = {
+        "name": "新規ユニット", "description": "説明...", "origin_system": "Target System A", "image_url": "",
+        "base_stats": { "spade": 1, "diamond": 1, "club": 1, "heart": 1 },
+        "systems_config": { 
+            "Target System A": { 
+                "stat_names": { "spade":"STR", "diamond":"PER", "club":"DEX", "heart":"DEF" }, 
+                "equipment": [],
+                "storage": { "backpack": [], "warehouse": [] }
+            }
+        }
+    };
+    initUI();
+}
+
+function adjValue(id, amount) {
+    values[id] = Math.max(0, (values[id] || 0) + amount);
+    if(id === 'curHP') values[id] = Math.min(values[id], values.maxHP);
+    updateDisplay();
+}
+function resetCurrentHP() { values.curHP = values.maxHP; updateDisplay(); }
+</script>
+</body>
+</html>
