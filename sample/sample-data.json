@@ -1,0 +1,27 @@
+{
+  "name": "キャラ名",
+  "description": "キャラの説明",
+  "image_url": "キャラ画像の保存先のURL",
+  "origin_system": "ここにキャラの出身システムを書く",
+  "base_stats": {
+    "spade": 1,
+    "diamond": 1,
+    "club": 1,
+    "heart": 1
+  },
+  "systems_config": {
+    "TRPGシステム名": {
+      "stat_names": {
+        "spade": "任意のステータス名",
+        "diamond": "任意のステータス名",
+        "club": "任意のステータス名",
+        "heart": "任意のステータス名"
+      },
+      "equipment": [],
+      "storage":{
+        "backpack":[],
+        "warehouse":[]
+      }
+    }
+  }
+}
