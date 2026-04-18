@@ -17,6 +17,10 @@
         "club": "任意のステータス名",
         "heart": "任意のステータス名"
       },
+      "hp_rule":{
+        "type":"formula",
+        "expr":[ "spade" , "+" , "heart" ]
+      },
       "equipment": [],
       "storage":{
         "backpack":[],
@@ -29,6 +33,10 @@
         "diamond": "任意のステータス名",
         "club": "任意のステータス名",
         "heart": "任意のステータス名"
+      },
+      "hp_rule":{
+        "type":"formula",
+        "expr":[ "spade" , "+" , "heart" , "*", "2" ]
       },
       "equipment": [],
       "storage":{
