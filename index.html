@@ -1,4 +1,4 @@
-<!--System Developer: [YMSR]-->
+!--System Developer: [YMSR]-->
 
 <!DOCTYPE html>
 <html lang="ja">
@@ -117,6 +117,34 @@ let charData = null;
 let currentSystem = "";
 let values = {}; 
 
+    function resolveValue(token, base) {
+    if (base[token] !== undefined) return base[token];
+    if (!isNaN(token)) return parseFloat(token);
+    return 0;
+}
+
+function evalFormula(expr, base) {
+    let result = 0;
+    let op = "+";
+
+    for (let token of expr) {
+        if (token === "+" || token === "-" || token === "*" || token === "/") {
+            op = token;
+        } else {
+            const val = resolveValue(token, base);
+
+            switch(op) {
+                case "+": result += val; break;
+                case "-": result -= val; break;
+                case "*": result *= val; break;
+                case "/": result /= val; break;
+            }
+        }
+    }
+
+    return result;
+}
+
 document.getElementById('fileInput').addEventListener('change', function(e) {
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -234,7 +262,18 @@ function updateBaseStat(stat, val) {
 }
 
 function calcHP(key, base) {
-    return (base.spade + base.heart);
+    const config = charData.systems_config[key];
+
+    // 旧式フォールバック（互換性）
+    if (!config.hp_rule) {
+        return (base.spade + base.heart);
+    }
+
+    if (config.hp_rule.type === "formula") {
+        return evalFormula(config.hp_rule.expr, base);
+    }
+
+    return 0;
 }
 
 function renderCalcStats(key, base, config) {
